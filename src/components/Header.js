@@ -1,53 +1,65 @@
-import React from "react";
-import { auth } from "../utils/firebase";
-import { signOut } from "firebase/auth";
-import { useSelector } from "react-redux";
-import { useDispatch } from "react-redux";
-import { removeUser } from "../utils/userSlice";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { LOGO } from "../utils/constants";
+import { auth } from "../utils/firebase";
+import { addUser, removeUser } from "../utils/userSlice";
 
 const Header = () => {
-  const user = useSelector((store) => store.user);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const user = useSelector((store) => store.user);
+
+  console.log(user);
 
   const handleSignOut = () => {
     signOut(auth)
-      .then(() => {
-        // Sign-out successful.
-        dispatch(removeUser());
-        navigate("/");
-      })
+      .then(() => {})
       .catch((error) => {
-        // An error happened.
+        navigate("/error");
       });
   };
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        const { uid, email, displayName, photoURL } = user;
+        dispatch(
+          addUser({
+            uid: uid,
+            email: email,
+            displayName: displayName,
+            photoURL: photoURL,
+          })
+        );
+        navigate("/browse");
+      } else {
+        dispatch(removeUser());
+        navigate("/");
+      }
+    });
+
+    // Unsiubscribe when component unmounts
+    return () => unsubscribe();
+  }, []);
+
   return (
-    <div className="absolute w-screen px-3 py-1 bg-gradient-to-b from-black z-10 flex justify-between">
-      <img
-        className="w-44"
-        src="https://cdn.cookielaw.org/logos/dd6b162f-1a32-456a-9cfe-897231c7763c/4345ea78-053c-46d2-b11e-09adaef973dc/Netflix_Logo_PMS.png"
-        alt="logo"
-      ></img>
-      <div className="flex p-2">
-        <img
-          className="h-12 w-12"
-          src="https://wallpapers.com/images/hd/netflix-profile-pictures-1000-x-1000-qo9h82134t9nv0j0.jpg"
-          alt="userLogo"
-        ></img>
-        <div className="flex items-center m-2">
-          {user && <p className="h-100 w-100 text-white">{user.displayName}</p>}
-          <button
-            onClick={handleSignOut}
-            className="font-bold cursor-pointer px-3 text-white"
-          >
-            Sign Out
+    <div className="absolute w-screen px-8 py-2 bg-gradient-to-b from-black z-10 flex flex-col md:flex-row justify-between">
+      <img className="w-44 mx-auto md:mx-0" src={LOGO} alt="logo" />
+      {user && (
+        <div className="flex p-2 justify-between">
+          <img
+            className="hidden md:block w-12 h-12"
+            alt="usericon"
+            src={user?.photoURL}
+          />
+          <button onClick={handleSignOut} className="font-bold text-white ">
+            (Sign Out)
           </button>
         </div>
-      </div>
+      )}
     </div>
   );
 };
-
 export default Header;
